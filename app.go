@@ -433,14 +433,14 @@ func init() {
 }
 
 func checkSession(c *gin.Context) {
-    session := sessions.Default(c)
-    mangaID := session.Get("MangaId")
-    if mangaID == nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "No active session"})
-        c.Abort()
-        return
-    }
-    c.Next()
+	session := sessions.Default(c)
+	mangaID := session.Get("MangaId")
+	if mangaID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No active session"})
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 func main() {
@@ -483,15 +483,15 @@ func main() {
 	store := cookie.NewStore([]byte(sessionSecret))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   3600, 
+		MaxAge:   3600,
 		HttpOnly: true,
-		Secure:   false, 
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	})
 
 	config := cors.DefaultConfig()
 	config.AllowCredentials = true
-	config.AllowOrigins = []string{"http://localhost:3000"} // Add your frontend URL
+	config.AllowOrigins = []string{"http://localhost:*", "https://mangaguesser.alejoseed.com"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Cookie"}
 	router.Use(cors.New(config))
 	router.Use(sessions.Sessions("mysession", store))
@@ -499,7 +499,7 @@ func main() {
 	// Routes
 	router.GET("/random_manga", randomManga)
 	router.GET("/answer", checkSession, checkAnswer)
-	router.GET("/image",  checkSession, getImage)
+	router.GET("/image", checkSession, getImage)
 	router.Run(":8080")
 
 }
