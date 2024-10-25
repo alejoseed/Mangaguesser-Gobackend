@@ -432,6 +432,17 @@ func init() {
 
 }
 
+func checkSession(c *gin.Context) {
+    session := sessions.Default(c)
+    mangaID := session.Get("MangaId")
+    if mangaID == nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "No active session"})
+        c.Abort()
+        return
+    }
+    c.Next()
+}
+
 func main() {
 
 	// load .env file
@@ -470,12 +481,25 @@ func main() {
 
 	// Session middleware
 	store := cookie.NewStore([]byte(sessionSecret))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   3600, 
+		HttpOnly: true,
+		Secure:   false, 
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	config := cors.DefaultConfig()
+	config.AllowCredentials = true
+	config.AllowOrigins = []string{"http://localhost:3000"} // Add your frontend URL
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Cookie"}
+	router.Use(cors.New(config))
 	router.Use(sessions.Sessions("mysession", store))
-	router.Use(cors.Default())
+
 	// Routes
 	router.GET("/random_manga", randomManga)
-	router.GET("/answer", checkAnswer)
-	router.GET("/image", getImage)
+	router.GET("/answer", checkSession, checkAnswer)
+	router.GET("/image",  checkSession, getImage)
 	router.Run(":8080")
 
 }
