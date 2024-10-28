@@ -15,6 +15,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
@@ -49,6 +50,12 @@ type ChapterDetail struct {
 	DataSaver []string `json:"dataSaver"`
 }
 
+type GameState struct {
+	MangaId    string `json:"mangaId"`
+	CorrectNum int    `json:"correctNum"`
+	AtHome     string `json:"atHome"`
+}
+
 var MangaIds = []manga{}
 
 /*
@@ -79,10 +86,6 @@ func fillMangas(data [][]string) {
 // This function is in charge of creating an array of strings that contain
 // a manga each one,
 func populateMangas() map[string]string {
-
-	// // Get a correct num, this will be the one we pass
-	// // in the future to check the answer
-	// var correctNum int = rand.Intn(4)
 	var mangaNames = map[string]string{}
 
 	for i := 0; i < 4; i++ {
@@ -98,47 +101,57 @@ func populateMangas() map[string]string {
 }
 
 func randomManga(c *gin.Context) {
-
 	session := sessions.Default(c)
+	userId := session.Get("userId")
+
+	if userId == nil {
+		userId = generateUserId()
+		session.Set("userId", userId)
+		session.Save()
+	}
 
 	const maxRetries = 5
 
 	for attempts := 0; attempts < maxRetries; attempts++ {
+		// Key is the name of the manga, value is the ID.
 		mangas := populateMangas()
-		var mangasArray = []string{}
+
+		var mangaNames = []string{}
 
 		for key := range mangas {
-			mangasArray = append(mangasArray, key)
+			mangaNames = append(mangaNames, key)
 		}
 
-		// Random number that is going to be the manga image that we will display
+		// Random number index that is going to be the manga image that we will display
 		var correctNum int = rand.Intn(4)
 
+		mangaId := mangas[mangaNames[correctNum]]
+
 		// Add the correct number to the session token..
-		session.Set("correctNum", correctNum)
-		session.Set("MangaId", mangas[mangasArray[correctNum]])
-		session.Set("atHome", "https://api.mangadex.org/at-home/server/")
-		session.Save()
-
-		// If the manga has as volume that means there are images around to get
-		if storedMangaId, ok := session.Get("MangaId").(string); ok {
-			if checkForVolumes(storedMangaId) {
-				response := gin.H{
-					"mangas":               mangasArray,
-					"CurrentStoredMangaId": storedMangaId,
-				}
-
-				c.IndentedJSON(http.StatusOK, response)
-				break
-			} else {
-				// No volume for that manga so let's continue the for loop
-				continue
-			}
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "No MangaId for some reason?"})
+		gameState := GameState{
+			MangaId:    mangaId,
+			CorrectNum: correctNum,
+			AtHome:     `https://api.mangadex.org/at-home/server/`,
 		}
 
+		if !(checkForVolumes(gameState.MangaId)) {
+			continue
+		}
+
+		response := gin.H{
+			"mangas":               mangaNames,
+			"CurrentStoredMangaId": gameState.MangaId,
+		}
+
+		session.Set("gameState", gameState)
+		session.Save()
+
+		c.JSON(http.StatusOK, response)
+		return
 	}
+
+	// It failed
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "No MangaId for some reason?"})
 }
 
 func checkForVolumes(MangaId string) bool {
@@ -193,6 +206,13 @@ func checkForVolumes(MangaId string) bool {
 func checkAnswer(c *gin.Context) {
 	var userAnswerStr = c.Query("number")
 	session := sessions.Default(c)
+	gameState := session.Get("gameState")
+
+	if gameState == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
+		return
+	}
+
 	userAnswer, err := strconv.Atoi(userAnswerStr)
 
 	if err != nil {
@@ -205,11 +225,10 @@ func checkAnswer(c *gin.Context) {
 		return
 	}
 
-	storedNumInterface := session.Get("correctNum")
+	storedNumInterface := gameState.(GameState).CorrectNum
 
-	if storedNum, ok := storedNumInterface.(int); ok {
-		isCorrect := (userAnswer == storedNum)
-		c.JSON(http.StatusOK, gin.H{"correct": isCorrect})
+	if userAnswer == storedNumInterface {
+		c.JSON(http.StatusOK, gin.H{"correct": true})
 	} else {
 		log.Error("Session data corrupted or missing, no random_manga?")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session data corrupted or missing, no random_manga?"})
@@ -217,110 +236,115 @@ func checkAnswer(c *gin.Context) {
 }
 
 func getImage(c *gin.Context) {
-
 	// For the sake of the test, we will just redo it, it is not necessary in prod
 	//populateMangas()
 	session := sessions.Default(c)
-	MangaIdInterface := session.Get("MangaId")
+	gameState := session.Get("gameState")
 
-	if storedManga, ok := MangaIdInterface.(string); ok {
-		requestUrl := "https://api.mangadex.org/manga/" + storedManga + "/aggregate"
-
-		resp, err := http.Get(requestUrl)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"storedManga": storedManga,
-				"url":         requestUrl,
-				"error":       err,
-			}).Error("Error reading response body in getImage")
-			return
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.WithFields(log.Fields{
-				"storedManga": storedManga,
-				"url":         requestUrl,
-				"status":      resp.StatusCode,
-			}).Error("Unexpected status code from server in getImage")
-			return
-		}
-
-		body, err := io.ReadAll(resp.Body)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"storedManga": storedManga,
-				"url":         requestUrl,
-				"error":       err,
-			}).Error("Error reading response body in getImage")
-			return
-		}
-
-		var aggregate AggregateResponse
-		err = json.Unmarshal(body, &aggregate)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"url": requestUrl,
-				"err": err,
-			}).Error("Failed to unmarshal aggregate response checkForVolumes")
-			return
-		}
-
-		// Random selection logic
-		volumeKeys := make([]string, 0, len(aggregate.Volumes))
-		for k := range aggregate.Volumes {
-			volumeKeys = append(volumeKeys, k)
-		}
-
-		randomVolumeKey := volumeKeys[rand.Intn(len(volumeKeys))]
-		randomVolume := aggregate.Volumes[randomVolumeKey]
-
-		chapterKeys := make([]string, 0, len(randomVolume.Chapters))
-		for k := range randomVolume.Chapters {
-			chapterKeys = append(chapterKeys, k)
-		}
-
-		randomChapterKey := chapterKeys[rand.Intn(len(chapterKeys))]
-		randomChapter := randomVolume.Chapters[randomChapterKey]
-
-		// We will hit this endpoint now that we have all the info
-		var atHomeUrl strings.Builder
-
-		atHomeUrl.WriteString("https://api.mangadex.org/at-home/server/")
-		atHomeUrl.WriteString(randomChapter.ID)
-
-		imageUrl := hitAtHomeUrl(atHomeUrl.String())
-
-		// Stop if the imageUrl is an empty string, which means there is another
-		// error logged with the issue.
-
-		if len(imageUrl) == 0 {
-			log.WithFields(log.Fields{
-				"imageUrl": imageUrl,
-			}).Error("There was an issue trying to get the URL for the image")
-			return
-		}
-
-		imageData, err := hitImageUrl(imageUrl)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"imageUrl": imageUrl,
-				"err":      err,
-			}).Error("Error fetching image data: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch image"})
-			return
-		}
-		c.Data(http.StatusOK, "image/jpeg", imageData)
-
-	} else {
-		log.Error("error", "Issue on storedManga")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Issue on storedManga"})
+	if gameState == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
+		return
 	}
+
+	requestUrl := "https://api.mangadex.org/manga/" + gameState.(GameState).MangaId + "/aggregate"
+
+	resp, err := http.Get(requestUrl)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"storedManga": gameState.(GameState).MangaId,
+			"url":         requestUrl,
+			"error":       err,
+		}).Error("Error reading response body in getImage")
+		return
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.WithFields(log.Fields{
+			"storedManga": gameState.(GameState).MangaId,
+			"url":         requestUrl,
+			"status":      resp.StatusCode,
+		}).Error("Unexpected status code from server in getImage")
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"storedManga": gameState.(GameState).MangaId,
+			"url":         requestUrl,
+			"error":       err,
+		}).Error("Error reading response body in getImage")
+		return
+	}
+
+	var aggregate AggregateResponse
+	err = json.Unmarshal(body, &aggregate)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"url": requestUrl,
+			"err": err,
+		}).Error("Failed to unmarshal aggregate response checkForVolumes")
+		return
+	}
+
+	// Random selection logic
+	volumeKeys := make([]string, 0, len(aggregate.Volumes))
+	for k := range aggregate.Volumes {
+		volumeKeys = append(volumeKeys, k)
+	}
+
+	randomVolumeKey := volumeKeys[rand.Intn(len(volumeKeys))]
+	randomVolume := aggregate.Volumes[randomVolumeKey]
+
+	chapterKeys := make([]string, 0, len(randomVolume.Chapters))
+	for k := range randomVolume.Chapters {
+		chapterKeys = append(chapterKeys, k)
+	}
+
+	randomChapterKey := chapterKeys[rand.Intn(len(chapterKeys))]
+	randomChapter := randomVolume.Chapters[randomChapterKey]
+
+	// We will hit this endpoint now that we have all the info
+	var atHomeUrl strings.Builder
+
+	atHomeUrl.WriteString("https://api.mangadex.org/at-home/server/")
+	atHomeUrl.WriteString(randomChapter.ID)
+
+	imageUrl := hitAtHomeUrl(atHomeUrl.String())
+
+	// Stop if the imageUrl is an empty string, which means there is another
+	// error logged with the issue.
+
+	if len(imageUrl) == 0 {
+		log.WithFields(log.Fields{
+			"imageUrl": imageUrl,
+		}).Error("There was an issue trying to get the URL for the image")
+		return
+	}
+
+	imageData, err := hitImageUrl(imageUrl)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"imageUrl": imageUrl,
+			"err":      err,
+		}).Error("Error fetching image data: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch image"})
+		return
+	}
+
+	c.Header("Cache-Control", "max-age=0, no-cache, must-revalidate, proxy-revalidate")
+	c.Data(http.StatusOK, "image/jpeg", imageData)
+}
+
+func generateUserId() string {
+	id := uuid.New()
+	return id.String()
 }
 
 func hitAtHomeUrl(atHomeParameters string) string {
@@ -434,8 +458,16 @@ func init() {
 
 func checkSession(c *gin.Context) {
 	session := sessions.Default(c)
-	mangaID := session.Get("MangaId")
-	if mangaID == nil {
+	gameState := session.Get("gameState")
+
+	if gameState == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
+		return
+	}
+
+	mangaID := gameState.(GameState).MangaId
+
+	if mangaID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "No active session"})
 		c.Abort()
 		return
