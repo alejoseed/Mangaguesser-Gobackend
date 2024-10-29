@@ -256,6 +256,7 @@ func getImage(c *gin.Context) {
 			"url":         requestUrl,
 			"error":       err,
 		}).Error("Error reading response body in getImage")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch url using gamestate mangaID."})
 		return
 	}
 
@@ -267,6 +268,7 @@ func getImage(c *gin.Context) {
 			"url":         requestUrl,
 			"status":      resp.StatusCode,
 		}).Error("Unexpected status code from server in getImage")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unexpected status code from server in getImage"})
 		return
 	}
 
@@ -278,6 +280,7 @@ func getImage(c *gin.Context) {
 			"url":         requestUrl,
 			"error":       err,
 		}).Error("Error reading response body in getImage")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error reading response body in getImage"})
 		return
 	}
 
@@ -289,6 +292,7 @@ func getImage(c *gin.Context) {
 			"url": requestUrl,
 			"err": err,
 		}).Error("Failed to unmarshal aggregate response checkForVolumes")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unmarshal aggregate response checkForVolumes"})
 		return
 	}
 
@@ -324,6 +328,7 @@ func getImage(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"imageUrl": imageUrl,
 		}).Error("There was an issue trying to get the URL for the image")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "There was an issue trying to get the URL for the image"})
 		return
 	}
 
