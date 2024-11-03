@@ -156,7 +156,7 @@ func findMangas() (gin.H, error) {
 		var correctNum int = rand.Intn(4)
 
 		mangaId := mangas[mangaNames[correctNum]]
-
+		fmt.Print(mangaId)
 		if !(checkForVolumes(mangaId)) {
 			continue
 		}
@@ -171,7 +171,6 @@ func findMangas() (gin.H, error) {
 		return response, nil
 	}
 	return nil, errors.New("no mangaid matched")
-
 }
 
 func checkForVolumes(MangaId string) bool {
@@ -226,12 +225,15 @@ func checkForVolumes(MangaId string) bool {
 func checkAnswer(c *gin.Context) {
 	var userAnswerStr = c.Query("number")
 	session := sessions.Default(c)
-	gameState := session.Get("gameState")
-
-	if gameState == nil {
+	var gameState GameState
+	v := session.Get("userId")
+	var userId string
+	if v == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
 		return
 	}
+	userId = v.(string)
+	gameState = GameStates[userId]
 
 	userAnswer, err := strconv.Atoi(userAnswerStr)
 
@@ -245,13 +247,13 @@ func checkAnswer(c *gin.Context) {
 		return
 	}
 
-	storedNumInterface := gameState.(GameState).CorrectNum
+	storedNumInterface := gameState.CorrectNum
 
 	if userAnswer == storedNumInterface {
 		c.JSON(http.StatusOK, gin.H{"correct": true})
 	} else {
-		log.Error("Session data corrupted or missing, no random_manga?")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session data corrupted or missing, no random_manga?"})
+		log.Error("It got to this point so most likely there is a manga that it found?")
+		c.JSON(http.StatusOK, gin.H{"correct": false})
 	}
 }
 
