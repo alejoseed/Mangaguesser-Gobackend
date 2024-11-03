@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -57,6 +58,7 @@ type GameState struct {
 }
 
 var MangaIds = []manga{}
+var GameStates = map[string]GameState{}
 
 /*
 The function is obvious. It gets the data from the CSV
@@ -102,14 +104,42 @@ func populateMangas() map[string]string {
 
 func randomManga(c *gin.Context) {
 	session := sessions.Default(c)
-	userId := session.Get("userId")
-
-	if userId == nil {
+	v := session.Get("userId")
+	var userId string
+	if v == nil {
 		userId = generateUserId()
 		session.Set("userId", userId)
-		session.Save()
+	} else {
+		userId = v.(string)
 	}
 
+	fmt.Println(userId)
+	mangas, err := findMangas()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No MangaId for some reason?"})
+		return
+	}
+
+	// Store the game state
+	gameState := GameState{
+		MangaId:    mangas["CurrentStoredMangaId"].(string),
+		CorrectNum: mangas["index"].(int),
+		AtHome:     `https://api.mangadex.org/at-home/server/`,
+	}
+
+	GameStates[userId] = gameState
+
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
+		return
+	}
+	// Delete the obvious answer from the manga
+	delete(mangas, "index")
+
+	c.JSON(http.StatusOK, mangas)
+}
+
+func findMangas() (gin.H, error) {
 	const maxRetries = 5
 
 	for attempts := 0; attempts < maxRetries; attempts++ {
@@ -127,31 +157,21 @@ func randomManga(c *gin.Context) {
 
 		mangaId := mangas[mangaNames[correctNum]]
 
-		// Add the correct number to the session token..
-		gameState := GameState{
-			MangaId:    mangaId,
-			CorrectNum: correctNum,
-			AtHome:     `https://api.mangadex.org/at-home/server/`,
-		}
-
-		if !(checkForVolumes(gameState.MangaId)) {
+		if !(checkForVolumes(mangaId)) {
 			continue
 		}
 
 		response := gin.H{
 			"mangas":               mangaNames,
-			"CurrentStoredMangaId": gameState.MangaId,
+			"CurrentStoredMangaId": mangaId,
+			"index":                correctNum,
 		}
 
-		session.Set("gameState", gameState)
-		session.Save()
-
-		c.JSON(http.StatusOK, response)
-		return
+		attempts = maxRetries
+		return response, nil
 	}
+	return nil, errors.New("no mangaid matched")
 
-	// It failed
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "No MangaId for some reason?"})
 }
 
 func checkForVolumes(MangaId string) bool {
@@ -239,20 +259,24 @@ func getImage(c *gin.Context) {
 	// For the sake of the test, we will just redo it, it is not necessary in prod
 	//populateMangas()
 	session := sessions.Default(c)
-	gameState := session.Get("gameState")
-
-	if gameState == nil {
+	var gameState GameState
+	v := session.Get("userId")
+	var userId string
+	if v == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
 		return
 	}
 
-	requestUrl := "https://api.mangadex.org/manga/" + gameState.(GameState).MangaId + "/aggregate"
+	userId = v.(string)
+	gameState = GameStates[userId]
+
+	requestUrl := "https://api.mangadex.org/manga/" + gameState.MangaId + "/aggregate"
 
 	resp, err := http.Get(requestUrl)
 
 	if err != nil {
 		log.WithFields(log.Fields{
-			"storedManga": gameState.(GameState).MangaId,
+			"storedManga": gameState.MangaId,
 			"url":         requestUrl,
 			"error":       err,
 		}).Error("Error reading response body in getImage")
@@ -264,7 +288,7 @@ func getImage(c *gin.Context) {
 
 	if resp.StatusCode != http.StatusOK {
 		log.WithFields(log.Fields{
-			"storedManga": gameState.(GameState).MangaId,
+			"storedManga": gameState.MangaId,
 			"url":         requestUrl,
 			"status":      resp.StatusCode,
 		}).Error("Unexpected status code from server in getImage")
@@ -276,7 +300,7 @@ func getImage(c *gin.Context) {
 
 	if err != nil {
 		log.WithFields(log.Fields{
-			"storedManga": gameState.(GameState).MangaId,
+			"storedManga": gameState.MangaId,
 			"url":         requestUrl,
 			"error":       err,
 		}).Error("Error reading response body in getImage")
@@ -461,27 +485,7 @@ func init() {
 
 }
 
-func checkSession(c *gin.Context) {
-	session := sessions.Default(c)
-	gameState := session.Get("gameState")
-
-	if gameState == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
-		return
-	}
-
-	mangaID := gameState.(GameState).MangaId
-
-	if mangaID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No active session"})
-		c.Abort()
-		return
-	}
-	c.Next()
-}
-
 func main() {
-
 	// load .env file
 	err := godotenv.Load()
 
@@ -535,8 +539,16 @@ func main() {
 
 	// Routes
 	router.GET("/random_manga", randomManga)
-	router.GET("/answer", checkSession, checkAnswer)
-	router.GET("/image", checkSession, getImage)
-	router.Run(":8080")
+	router.GET("/answer", checkAnswer)
+	router.GET("/image", getImage)
 
+	router.GET("/debug-session", func(c *gin.Context) {
+		session := sessions.Default(c)
+		c.JSON(http.StatusOK, gin.H{
+			"userId":    session.Get("userId"),
+			"gameState": session.Get("gameState"),
+		})
+	})
+
+	router.Run(":8080")
 }
