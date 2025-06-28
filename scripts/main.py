@@ -3,7 +3,7 @@ import requests
 from lxml import html
 import re
 import os
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Playwright
 import polars as pl
 from fuzzywuzzy import fuzz
 import random
@@ -13,6 +13,12 @@ import urllib3
 import certifi
 import ssl
 
+# const pathToExtension = require('path').join(__dirname, 'my-extension');
+
+ublock = "/Users/alejoseed/Projects/Mangaguesser-Gobackend/scripts/uBlock0.chromium"
+# ublock = "/Users/alejoseed/Projects/Mangaguesser-Gobackend/scripts/uBlock0_1.64.1b8.firefox.signed.xpi"
+
+user_data_dir = "/tmp/test-user-data-dir"
 
 http = urllib3.PoolManager(
     cert_reqs='CERT_REQUIRED',
@@ -92,24 +98,10 @@ def sanitize_folder_name(name):
     # Remove or replace characters that aren't allowed in folder names
     return re.sub(r'[\\/*?:"<>|\]\[]', "", name).strip()
 
-def normalize_title(text):
+def normalize_title(text : str) -> str:
     return text.lower().strip()
 
-def download_image(url, folder, filename):
-    try:
-        r = requests.get(url, stream=True, verify=False)
-        r.raise_for_status()
-        with open(os.path.join(folder, filename), 'wb') as f:
-            for chunk in r.iter_content(1024):
-                f.write(chunk)
-        print(f"✅ Downloaded: {filename}")
-    except Exception as e:
-        print(f"❌ Failed to download image: {e}")
-
-def normalize_title(text):
-    return text.lower().strip()
-
-def download_image(url, folder, filename, retries=3, delay=5):
+def download_image(url : str, folder : str, filename : str, retries:int=3, delay:int=5) -> None:
     attempt = 0
     while attempt < retries:
         try:
@@ -145,7 +137,7 @@ def get_manga_image_lmanga(df: pl.DataFrame):
     entries = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=False, args=[f"--disable-extensions-except={ublock}", f"--load-extension={ublock}"])
         page = browser.new_page()
 
         for eng, jap in zip(titles, japanese_titles):
@@ -176,8 +168,13 @@ def get_manga_image_lmanga(df: pl.DataFrame):
                     if not title_el.is_visible():
                         continue
 
+                    result_tile : str = ""
                     try:
-                        result_title = title_el.text_content().strip()
+                        text_context = title_el.text_content()
+                        if text_context:
+                            result_title = text_context.strip()
+                        else:
+                            continue
                     except Exception as e:
                         print(f"⚠️ Skipping result {i}: {e}")
                         continue
@@ -192,7 +189,18 @@ def get_manga_image_lmanga(df: pl.DataFrame):
 
                 if best_match and best_score >= 100:
                     print(f"✅ Match found for '{attempt_title}' with score {best_score}")
-                    matched_title = best_match.locator("b").text_content().strip()
+                    
+                    try:
+                        text_context = best_match.locator("b").text_content()
+                        if text_context:
+                            result_title = text_context.strip()
+                        else:
+                            continue
+                    except Exception as e:
+                        print(f"⚠️ Error getting text_context for the best match : {e}")
+                        continue
+
+                    matched_title = text_context.strip()
                     folder_path = os.path.join("mangas", eng)
                     Path(folder_path).mkdir(parents=True, exist_ok=True)
 
@@ -272,10 +280,30 @@ def get_manga_image_klz9(df: pl.DataFrame):
     }
 
     entries = []
-
+    
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, executable_path='/usr/bin/brave')
+        # browser = p.chromium.launch_persistent_context(
+        #     user_data_dir=user_data_dir,
+        #     args=[
+        #         f"--disable-features=ExtensionDisableUnsupportedDeveloper",
+        #         f"--disable-extensions-except={ublock}",
+        #         f"--load-extension={ublock}",
+        #     ],
+        #     headless=False,
+        # )
+        browser = p.chromium.launch(headless=False, executable_path='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser')
         page = browser.new_page()
+        page.wait_for_timeout(1000) # wait until uBlock Origin is initialised
+
+        # browser = p.firefox.launch_persistent_context(
+        #     user_data_dir=user_data_dir,
+        #     channel='firefox',
+        #     args=[
+        #         f"--disable-extensions-except={ublock}",
+        #         f"--load-extension={ublock}",
+        #     ],
+        #     headless=False,
+        # )
 
         for eng, jap in zip(titles, japanese_titles):
             for attempt_title in [jap]:
@@ -304,9 +332,14 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                     if not title_el.is_visible():
                         continue
-
+                    
+                    result_tile : str = ""
                     try:
-                        result_title = title_el.text_content().strip()
+                        text_context = title_el.text_content()
+                        if text_context:
+                            result_title = text_context.strip()
+                        else:
+                            continue
                     except Exception as e:
                         print(f"⚠️ Skipping result {i}: {e}")
                         continue
@@ -321,6 +354,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                 if best_match and best_score >= 100:
                     print(f"✅ Match found for '{attempt_title}' with score {best_score}")
+
                     matched_title = best_match.locator("b").text_content().strip()
                     folder_path = os.path.join("mangas", eng)
                     Path(folder_path).mkdir(parents=True, exist_ok=True)
@@ -390,7 +424,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
         browser.close()
 
     return 0
-def get_df_from_csv(csv_addr = "top_manga.csv") -> pl.DataFrame:
+def get_df_from_csv(csv_addr :str = "top_manga.csv") -> pl.DataFrame:
     try:
         df = pl.read_csv(csv_addr)
         return df
@@ -402,7 +436,7 @@ def main():
     # create_initial_csv()
     # create_folders_from_csv()
 
-    df : pl.DataFrame = get_df_from_csv("top_manga.csv")
+    df : pl.DataFrame = get_df_from_csv("./top_manga.csv")
     if df.is_empty():
         print("No CSV data found. Exiting")
         exit(0)
