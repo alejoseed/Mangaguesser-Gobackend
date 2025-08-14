@@ -520,8 +520,17 @@ func main() {
 
 	sessionSecret := os.Getenv("SESSION_SECRET")
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
 
+	router.Use(func(c *gin.Context) {
+		c.Next()
+
+		status := c.Writer.Status()
+		if status == http.StatusOK || status == http.StatusBadRequest || status == http.StatusInternalServerError {
+			log.Printf("%d | %s | %s | %s", status, c.Request.Method, c.Request.URL.Path, c.ClientIP())
+		}
+	})
 	// Session middleware
 	store := cookie.NewStore([]byte(sessionSecret))
 	store.Options(sessions.Options{
@@ -534,7 +543,7 @@ func main() {
 
 	config := cors.DefaultConfig()
 	config.AllowCredentials = true
-	config.AllowOrigins = []string{"http://localhost:*", "https://mangaguesser.alejoseed.com"}
+	config.AllowOrigins = []string{"http://localhost:8080", "http://localhost:3000", "https://mangaguesser.alejoseed.com"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Cookie"}
 	router.Use(cors.New(config))
 	router.Use(sessions.Sessions("mysession", store))
