@@ -424,19 +424,12 @@ def get_manga_image_klz9(df: pl.DataFrame):
         browser.close()
 
     return 0
-def get_df_from_csv(csv_addr :str = "top_manga.csv") -> pl.DataFrame:
-    try:
-        df = pl.read_csv(csv_addr)
-        return df
-    except Exception as e:
-        print("Error reading csv, verify address.")
-        return pl.DataFrame()
     
 def main():
     # create_initial_csv()
     # create_folders_from_csv()
 
-    df : pl.DataFrame = get_df_from_csv("./top_manga.csv")
+    df : pl.DataFrame = pl.read_csv("./top_manga.csv")
     if df.is_empty():
         print("No CSV data found. Exiting")
         exit(0)

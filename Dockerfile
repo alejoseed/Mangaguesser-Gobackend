@@ -1,16 +1,22 @@
-FROM golang:1.25-alpine
+FROM golang:1.25-alpine AS build
+
+ENV GO111MODULE=on \
+    GOPROXY=https://proxy.golang.org,direct \
+    CGO_ENABLED=0
 
 WORKDIR /app
-COPY . .
 
+COPY go.mod go.sum ./
 RUN go mod download
-RUN go get github.com/gin-contrib/cors
-RUN go get github.com/google/uuid
-RUN CGO_ENABLED=0 GOOS=linux go build -o /mangaguesser-app
 
+COPY *.go ./
+
+RUN go build -ldflags="-s -w" -o /mangaguesser-app
 
 FROM gcr.io/distroless/static
-COPY --from=0 /mangaguesser-app /mangaguesser-app
+WORKDIR /app
+
+COPY --from=build /mangaguesser-app /mangaguesser-app
 COPY .env .
 COPY mangaIDs.csv .
 
