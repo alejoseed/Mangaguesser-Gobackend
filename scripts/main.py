@@ -429,7 +429,7 @@ def main():
     # create_initial_csv()
     # create_folders_from_csv()
 
-    df : pl.DataFrame = pl.read_csv("./top_manga.csv")
+    df : pl.DataFrame = pl.read_csv("/Users/alejoseed/Projects/Mangaguesser-Gobackend/scripts/top_manga.csv")
     if df.is_empty():
         print("No CSV data found. Exiting")
         exit(0)
