@@ -3,13 +3,13 @@ import requests
 from lxml import html
 import re
 import os
-from playwright.sync_api import sync_playwright, Playwright
+from playwright.sync_api import sync_playwright, Playwright, Locator
 import polars as pl
 from fuzzywuzzy import fuzz
 import random
 import time
 import urllib3
-
+from dataclasses import dataclass
 import certifi
 import ssl
 
@@ -29,6 +29,12 @@ from pathlib import Path
 from requests.exceptions import RequestException
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+@dataclass
+class BestMatchTitle():
+    obj: Locator | None
+    title : str
+    score : int
 
 def create_initial_csv():
     base_url = "https://myanimelist.net/topmanga.php"
@@ -112,58 +118,60 @@ def download_image(url : str, folder : str, filename : str, retries:int=3, delay
             with open(os.path.join(folder, filename), 'wb') as f:
                 for chunk in r.iter_content(1024):
                     f.write(chunk)
-            print(f"✅ Downloaded: {filename}")
+            print(f"Downloaded: {filename}")
             return
         except RequestException as e:
             attempt += 1
-            print(f"⚠️ Attempt {attempt} failed: {e}")
+            print(f"Attempt {attempt} failed: {e}")
             if attempt < retries:
-                print(f"🔁 Retrying in {delay} seconds...")
+                print(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
             else:
-                print(f"❌ Failed to download {filename} after {retries} attempts.")
+                print(f"Failed to download {filename} after {retries} attempts.")
 
-def get_manga_image_lmanga(df: pl.DataFrame):
-    titles = df.select("English Title").to_series().to_list()
-    japanese_titles = df.select("Japanese Title").to_series().to_list()
-    
-    struct = {
-        'jap_title': pl.String,
-        'eng_title': pl.String,
-        'found': pl.Boolean,
-        'score': pl.Int8,
-    }
-
-    entries = []
+def get_manga_image_weebcentral(df: pl.DataFrame):
+    titles : list[str] = df.select("English Title").to_series().to_list()
+    japanese_titles: list[str] = df.select("Japanese Title").to_series().to_list()
+    entries: list[str] = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=[f"--disable-extensions-except={ublock}", f"--load-extension={ublock}"])
-        page = browser.new_page()
+        browser = p.chromium.launch(
+            headless=False,
+            executable_path='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser')
+        
+        context = browser.new_context()
 
+        page = context.new_page()
+        page.wait_for_timeout(1000) # wait until uBlock Origin is initialised
+        base_url = "https://weebcentral.com/search?text="
+
+        rest_of_url = "&sort=Best+Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full+Display"
         for eng, jap in zip(titles, japanese_titles):
-            for attempt_title in [jap]:
+            for attempt_title in [eng]:
                 if not attempt_title or attempt_title.strip() == "":
                     continue
-
                 print(f"\n🔍 Searching: {attempt_title} with english title {eng}")
-                page.goto("https://www.lmanga.com/")
+                try:
+                    _ = page.goto(f"{base_url}{eng}{rest_of_url}")
+                except Exception as e:
+                    print("Could not get to page. exiting", e)
+                    exit(0)
+
                 page.wait_for_load_state("networkidle")
                 time.sleep(random.uniform(1.5, 3))
 
-                search_box = page.locator('xpath=//*[@id="Nav"]/div/div/div[2]/form/div/input')
-                search_box.fill(attempt_title)
-                search_box.press("Enter")
+                # search_box = page.locator('xpath=/html/body/div[1]/header/div/div/div[2]/div/form/input')
+                search_results = page.locator('xpath=//*[@id="search-results"]')
+                search_results_children = search_results.locator("article > section")
+                result_count = search_results_children.count()
+
                 page.wait_for_timeout(3000)
 
-                results = page.locator("div.top-15")
-                result_count = results.count()
-
-                best_match = None
-                best_score = 0
+                best_match = BestMatchTitle(None, "", 0)
 
                 for i in range(result_count):
-                    result = results.nth(i)
-                    title_el = result.locator("b")
+                    result = search_results_children.nth(i)
+                    title_el = search_results_children.locator("div.text-lg.font-semibold.flex.items-center.gap-1 > span:nth-child(4)")
 
                     if not title_el.is_visible():
                         continue
@@ -180,36 +188,24 @@ def get_manga_image_lmanga(df: pl.DataFrame):
                         continue
 
                     score = fuzz.partial_ratio(normalize_title(attempt_title), normalize_title(result_title))
-                    if score > best_score:
-                        best_match = result
-                        best_score = score
+                    if score > best_match.score:
+                        best_match.obj = result
+                        best_match.title = result_tile
+                        best_match.score = score
 
                     if score > 97:
                         break
 
-                if best_match and best_score >= 100:
-                    print(f"✅ Match found for '{attempt_title}' with score {best_score}")
-                    
-                    try:
-                        text_context = best_match.locator("b").text_content()
-                        if text_context:
-                            result_title = text_context.strip()
-                        else:
-                            continue
-                    except Exception as e:
-                        print(f"⚠️ Error getting text_context for the best match : {e}")
-                        continue
-
-                    matched_title = text_context.strip()
+                if best_match.obj and best_match.score >= 98:
+                    print(f"Match found for '{attempt_title}' with score {best_match.score}")
                     folder_path = os.path.join("mangas", eng)
                     Path(folder_path).mkdir(parents=True, exist_ok=True)
 
-                    manga_href = best_match.locator("a.SeriesName").first.get_attribute("href")
-                    manga_url = f"https://www.lmanga.com{manga_href}"
-                    page.goto(manga_url, wait_until="networkidle")
+                    best_match.obj.click()
                     time.sleep(random.uniform(1.5, 3))
 
-                    chapters = page.locator("a.ChapterLink")
+                    chapter_list = page.locator("#chapter-list")
+                    chapters = chapter_list.locator("div")
                     if chapters.count() == 0:
                         print("❌ No chapters found.")
                         break
@@ -238,7 +234,7 @@ def get_manga_image_lmanga(df: pl.DataFrame):
 
                         filename = os.path.basename(img_url.split("?")[0])
                         download_image(img_url, folder_path, filename)
-                    
+
                     entries.append(
                         {
                             'eng_title': eng,
@@ -261,26 +257,20 @@ def get_manga_image_lmanga(df: pl.DataFrame):
                             'found': False
                         }
                     )
-        
+
         pl.DataFrame(entries).write_parquet("./results.parquet")
         pl.DataFrame(entries).write_csv("./results.csv")
 
         input("\nDone. Press Enter to close the browser...")
         browser.close()
 
-def get_manga_image_klz9(df: pl.DataFrame):
-    titles = df.select("English Title").to_series().to_list()
-    japanese_titles = df.select("Japanese Title").to_series().to_list()
-    
-    struct = {
-        'jap_title': pl.String,
-        'eng_title': pl.String,
-        'found': pl.Boolean,
-        'score': pl.Int8,
-    }
+    return 0
 
-    entries = []
-    
+def get_manga_image_klz9(df: pl.DataFrame):
+    titles : list[str] = df.select("English Title").to_series().to_list()
+    japanese_titles: list[str] = df.select("Japanese Title").to_series().to_list()
+    entries: list[str] = []
+
     with sync_playwright() as p:
         # browser = p.chromium.launch_persistent_context(
         #     user_data_dir=user_data_dir,
@@ -311,7 +301,12 @@ def get_manga_image_klz9(df: pl.DataFrame):
                     continue
 
                 print(f"\n🔍 Searching: {attempt_title} with english title {eng}")
-                page.goto("https://klz9.com/idx")
+                try:
+                    _ = page.goto("https://klz9.com/idx")
+                except Exception as e:
+                    print("Could not get to page. exiting", e)
+                    exit(0)
+
                 page.wait_for_load_state("networkidle")
                 time.sleep(random.uniform(1.5, 3))
 
@@ -332,7 +327,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                     if not title_el.is_visible():
                         continue
-                    
+
                     result_tile : str = ""
                     try:
                         text_context = title_el.text_content()
@@ -393,7 +388,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                         filename = os.path.basename(img_url.split("?")[0])
                         download_image(img_url, folder_path, filename)
-                    
+
                     entries.append(
                         {
                             'eng_title': eng,
@@ -416,7 +411,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
                             'found': False
                         }
                     )
-        
+
         pl.DataFrame(entries).write_parquet("./results.parquet")
         pl.DataFrame(entries).write_csv("./results.csv")
 
@@ -424,7 +419,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
         browser.close()
 
     return 0
-    
+
 def main():
     # create_initial_csv()
     # create_folders_from_csv()
@@ -434,7 +429,7 @@ def main():
         print("No CSV data found. Exiting")
         exit(0)
 
-    get_manga_image_klz9(df)
+    get_manga_image_weebcentral(df)
 
 if __name__ == "__main__":
     main()
