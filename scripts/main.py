@@ -75,7 +75,7 @@ def create_initial_csv():
                     if jp_node:
                         japanese_title = jp_node[0].strip()
                 except Exception as e:
-                    print(f"⚠️ Failed to fetch Japanese title for {english_title}: {e}")
+                    print(f"Failed to fetch Japanese title for {english_title}: {e}")
 
                 writer.writerow([rank, english_title, japanese_title, link])
                 print(f"✅ {rank}. {english_title} ({japanese_title})")
@@ -184,7 +184,7 @@ def get_manga_image_weebcentral(df: pl.DataFrame):
                         else:
                             continue
                     except Exception as e:
-                        print(f"⚠️ Skipping result {i}: {e}")
+                        print(f"Skipping result {i}: {e}")
                         continue
 
                     score = fuzz.partial_ratio(normalize_title(attempt_title), normalize_title(result_title))
@@ -207,20 +207,20 @@ def get_manga_image_weebcentral(df: pl.DataFrame):
                     chapter_list = page.locator("#chapter-list")
                     chapters = chapter_list.locator("div")
                     if chapters.count() == 0:
-                        print("❌ No chapters found.")
+                        print("No chapters found.")
                         break
 
                     random_chapter = random.randint(0, chapters.count() - 1)
                     ch = chapters.nth(random_chapter)
                     ch_url = f"https://www.lmanga.com{ch.get_attribute('href')}"
-                    print(f"📖 Opening random chapter: {ch_url}")
+                    print(f"Opening random chapter: {ch_url}")
                     page.goto(ch_url, wait_until="networkidle")
                     time.sleep(random.uniform(1.5, 3))
 
                     imgs = page.locator("img.img-fluid")
                     img_count = imgs.count()
                     if img_count == 0:
-                        print("❌ No images found in chapter.")
+                        print("No images found in chapter.")
                         break
 
                     img_indices = random.sample(range(img_count), min(3, img_count))  # up to 3 random images
@@ -229,7 +229,7 @@ def get_manga_image_weebcentral(df: pl.DataFrame):
                         img = imgs.nth(idx)
                         img_url = img.get_attribute("data-original") or img.get_attribute("src")
                         if not img_url:
-                            print(f"❌ No valid image URL at index {idx}.")
+                            print(f"No valid image URL at index {idx}.")
                             continue
 
                         filename = os.path.basename(img_url.split("?")[0])
@@ -248,7 +248,7 @@ def get_manga_image_weebcentral(df: pl.DataFrame):
 
                     break
                 else:
-                    print(f"❌ No good match with '{attempt_title}':'{eng}'")
+                    print(f"No good match with '{attempt_title}':'{eng}'")
                     entries.append(
                         {
                             'eng_title': eng,
@@ -336,7 +336,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
                         else:
                             continue
                     except Exception as e:
-                        print(f"⚠️ Skipping result {i}: {e}")
+                        print(f"Skipping result {i}: {e}")
                         continue
 
                     score = fuzz.partial_ratio(normalize_title(attempt_title), normalize_title(result_title))
@@ -361,20 +361,20 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                     chapters = page.locator("a.ChapterLink")
                     if chapters.count() == 0:
-                        print("❌ No chapters found.")
+                        print("No chapters found.")
                         break
 
                     random_chapter = random.randint(0, chapters.count() - 1)
                     ch = chapters.nth(random_chapter)
                     ch_url = f"https://www.lmanga.com{ch.get_attribute('href')}"
-                    print(f"📖 Opening random chapter: {ch_url}")
+                    print(f"Opening random chapter: {ch_url}")
                     page.goto(ch_url, wait_until="networkidle")
                     time.sleep(random.uniform(1.5, 3))
 
                     imgs = page.locator("img.img-fluid")
                     img_count = imgs.count()
                     if img_count == 0:
-                        print("❌ No images found in chapter.")
+                        print("No images found in chapter.")
                         break
 
                     img_indices = random.sample(range(img_count), min(3, img_count))  # up to 3 random images
@@ -383,7 +383,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
                         img = imgs.nth(idx)
                         img_url = img.get_attribute("data-original") or img.get_attribute("src")
                         if not img_url:
-                            print(f"❌ No valid image URL at index {idx}.")
+                            print(f"No valid image URL at index {idx}.")
                             continue
 
                         filename = os.path.basename(img_url.split("?")[0])
@@ -402,7 +402,7 @@ def get_manga_image_klz9(df: pl.DataFrame):
 
                     break
                 else:
-                    print(f"❌ No good match with '{attempt_title}':'{eng}'")
+                    print(f"No good match with '{attempt_title}':'{eng}'")
                     entries.append(
                         {
                             'eng_title': eng,
