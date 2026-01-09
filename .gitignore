@@ -3,3 +3,5 @@
 uBlock0.chromium
 .DS_Store
 *.json
+*.png
+/scripts/mangas/

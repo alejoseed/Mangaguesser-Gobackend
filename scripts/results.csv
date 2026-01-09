@@ -1,5 +1,228 @@
-eng_title,jap_title,score,found
-entry0_eng,entry0_jap,0,true
-entry1_eng,entry1_jap,0,true
-entry2_eng,entry2_jap,0,true
-entry3_eng,entry3_jap,0,true
+eng_title,jap_title,score
+Berserk,ベルセルク,100.0
+20th Century Boys,20世紀少年,100.0
+Grand Blue Dreaming,ぐらんぶる,100.0
+Goodnight Punpun,おやすみプンプン,100.0
+Land of the Lustrous,宝石の国,100.0
+GTO: Great Teacher Onizuka,GTO,94.33962264150944
+March Comes in Like a Lion,3月のライオン,100.0
+A Silent Voice,聲の形,100.0
+The Fragrant Flower Blooms with Dignity,薫る花は凛と咲く,100.0
+The Climber,孤高の人,100.0
+Girls' Last Tour,少女終末旅行,100.0
+Medalist,メダリスト,100.0
+Dorohedoro,ドロヘドロ,100.0
+Yotsuba&!,よつばと!,100.0
+Yona of the Dawn,暁のヨナ,100.0
+Vinland Saga,ヴィンランド・サガ,100.0
+Veil,Veil,100.0
+Vagabond,バガボンド,100.0
+Uchuu Kyoudai,宇宙兄弟,100.0
+Slam Dunk,SLAM DUNK,100.0
+Real,リアル,100.0
+One Piece,ONE PIECE,100.0
+Nana,NANA,100.0
+Mushishi,蟲師,100.0
+Monster,MONSTER,100.0
+Made in Abyss,メイドインアビス,100.0
+Kono Oto Tomare!,この音とまれ！,100.0
+Kingdom,キングダム,100.0
+Hunter x Hunter,HUNTER×HUNTER,100.0
+Hajime no Ippo,はじめの一歩,100.0
+Fullmetal Alchemist,鋼の錬金術師,100.0
+Death Note,DEATH NOTE,100.0
+Chainsaw Man,チェンソーマン,100.0
+Kaguya-sama: Love is War,かぐや様は告らせたい,75.0
+Frieren: Beyond Journey's End,葬送のフリーレン,93.10344827586206
+Nausica of the Valley of the Wind,風の谷のナウシカ,100.0
+Akira,AKIRA,100.0
+Natsume's Book of Friends,夏目友人帳,92.0
+Witch Hat Atelier,とんがり帽子のアトリエ,100.0
+One Punch-Man,ワンパンマン,92.3076923076923
+The Apothecary Diaries,薬屋のひとりごと,100.0
+Bloom Into You,やがて君になる,100.0
+"Goodbye, Eri",さよなら絵梨,95.65217391304348
+ReLIFE,ReLIFE,100.0
+Golden Kamuy,ゴールデンカムイ,100.0
+Lone Wolf and Cub,子連れ狼,100.0
+Ao Ashi,アオアシ,100.0
+Pluto,PLUTO,100.0
+Aria,ARIA,100.0
+Mob Psycho 100,モブサイコ100,100.0
+Blue Period,ブルーピリオド,100.0
+Banana Fish,BANANA FISH,100.0
+Skip and Loafer,スキップとローファー,100.0
+Your Lie in April,四月は君の嘘,100.0
+Neon Genesis Evangelion,新世紀エヴァンゲリオン,100.0
+Chihayafuru,ちはやふる,100.0
+A Bride's Story,乙嫁語り,93.33333333333333
+The Fable,ザ・ファブル,100.0
+Attack on Titan,進撃の巨人,100.0
+Tokyo Ghoul,東京喰種,100.0
+Phoenix,火の鳥,100.0
+Kamisama Kiss,神様はじめました,100.0
+Rurouni Kenshin,るろうに剣心,100.0
+Ping Pong,ピンポン,100.0
+One Outs,ONE OUTS,100.0
+Sasaki and Miyano,佐々木と宮野,100.0
+Hirayasumi,ひらやすみ,100.0
+Ouran High School Host Club,桜蘭高校ホスト部,100.0
+Gundam: The Origin,機動戦士ガンダム THE ORIGIN,72.34042553191489
+Given,ギヴン,100.0
+Blue Giant,BLUE GIANT,100.0
+Bakemonogatari,化物語,100.0
+A Sign of Affection,ゆびさきと恋々,100.0
+I Want to Eat Your Pancreas,君の膵臓をたべたい,100.0
+Spirit Circle,スピリットサークル,100.0
+Bungou Stray Dogs,文豪ストレイドッグス,96.96969696969697
+Shimeji Simulation,シメジ シミュレーション,100.0
+Spy x Family,SPY×FAMILY,100.0
+Uma Musume Cinderella Gray,ウマ娘 シンデレラグレイ,98.0
+The Case Study of Vanitas,ヴァニタスの手記,100.0
+Hinamatsuri,ヒナまつり,100.0
+Our Dreams at Dusk,しまなみ誰そ彼,100.0
+Eyeshield 21,アイシールド21,100.0
+The World God Only Knows,神のみぞ知るセカイ,100.0
+Spice and Wolf,狼と香辛料,84.61538461538461
+Rainbow,RAINBOW 二舎六房の七人,100.0
+Dandadan,ダンダダン,100.0
+Moriarty the Patriot,憂国のモリアーティ,100.0
+Dragon Ball,ドラゴンボール,100.0
+Doraemon,ドラえもん,100.0
+Holyland,ホーリーランド,100.0
+Barakamon,ばらかもん,100.0
+Look Back,ルックバック,100.0
+Blade of the Immortal,無限の住人,100.0
+Black Butler,黒執事,100.0
+Horimiya,ホリミヤ,100.0
+Insomniacs After School,君は放課後インソムニア,100.0
+Nodame Cantabile,のだめカンタービレ,100.0
+Basara,BASARA,100.0
+Masturbation Master Kurosawa,オナニーマスター黒沢,73.46938775510203
+Innocent Rouge,イノサン Rouge,100.0
+Your Name,君の名は。,94.73684210526316
+Battle Angel Alita,銃夢 GUNNM,100.0
+Maid Sama!,会長はメイド様!,84.21052631578947
+Nichijou,日常,100.0
+Alice in Borderland,今際の国のアリス,100.0
+Tomodachi Game,トモダチゲーム,100.0
+That Time I Got Reincarnated as a Slime,転生したらスライムだった件,100.0
+xxxHOLiC,xxxHOLiC,100.0
+Azumanga Daioh,あずまんが大王,100.0
+Cardcaptor Sakura,カードキャプターさくら,100.0
+Parasyte,寄生獣,100.0
+SKET Dance,SKET DANCE,100.0
+Bakuman,BAKUMAN。,100.0
+I Had That Same Dream Again,また、同じ夢を見ていた,100.0
+Erased,僕だけがいない街,100.0
+Welcome to the Ballroom,ボールルームへようこそ,100.0
+The Rose of Versailles,ベルサイユのばら,100.0
+Zatch Bell!,金色のガッシュ!!,95.23809523809523
+Shadows House,シャドーハウス,100.0
+Wotakoi: Love is Hard for Otaku,ヲタクに恋は難しい,96.7741935483871
+The Saga of Tanya the Evil,幼女戦記,100.0
+The Ancient Magus' Bride,魔法使いの嫁,97.0
+Silver Spoon,銀の匙 Silver Spoon,100.0
+The Girl From the Other Side,とつくにの少女,78.87323943661973
+Lovely Complex,ラブ★コン,84.84848484848484
+Gakuen Alice,学園アリス,100.0
+Forest of Piano,ピアノの森,100.0
+Bocchi the Rock!,ぼっち・ざ・ろっく!,96.7741935483871
+Blue Box,アオのハコ,100.0
+Touch,タッチ,100.0
+Lucifer and the Biscuit Hammer,惑星のさみだれ,100.0
+Black Jack,ブラック・ジャック,100.0
+Tsubasa: Reservoir Chronicle,ツバサ,96.42857142857143
+Paradise Kiss,パラダイス・キス,100.0
+Blame!,BLAME!,90.9090909090909
+Black Lagoon,ブラックラグーン,100.0
+Red River,天は赤い河のほとり,100.0
+Claymore,CLAYMORE,100.0
+Angel Densetsu,エンジェル伝説,100.0
+Case Closed,名探偵コナン,100.0
+Buddha,ブッダ,100.0
+To Your Eternity,不滅のあなたへ,100.0
+Kengan Ashura,ケンガンアシュラ,100.0
+Dengeki Daisy,電撃デイジー,100.0
+Magi,マギ,100.0
+Princess Jellyfish,海月姫,100.0
+Liar Game,LIAR GAME,100.0
+The Dangers in My Heart,僕の心のヤバイやつ,100.0
+The Eminence in Shadow,陰の実力者になりたくて!,100.0
+Initial D,頭文字D,100.0
+Planetes,プラネテス,100.0
+Honey and Clover,ハチミツとクローバー,100.0
+A Certain Scientific Railgun,とある科学の超電磁砲,100.0
+Assassination Classroom,暗殺教室,100.0
+Beastars,BEASTARS,100.0
+Jujutsu Kaisen,呪術廻戦,100.0
+Ace of Diamond,ダイヤのA,87.5
+Daily Lives of High School Boys,男子高校生の日常,93.93939393939394
+Summertime Render,サマータイムレンダ,91.89189189189189
+Hell's Paradise: Jigokuraku,地獄楽,88.88888888888889
+7 Seeds,7SEEDS,100.0
+Snow White with the Red Hair,赤髪の白雪姫,100.0
+Crows,クローズ,100.0
+Non Non Biyori,のんのんびより,100.0
+Eden: It's an Endless World!,EDEN,90.9090909090909
+Sanctuary,サンクチュアリ,100.0
+Solanin,ソラニン,100.0
+The Witch and the Beast,魔女と野獣,100.0
+Tsurezure Children,徒然チルドレン,100.0
+The Flowers of Evil,惡の華,100.0
+House of the Sun,たいようのいえ,100.0
+Akagi,アカギ,100.0
+Dusk Maiden of Amnesia,黄昏乙女×アムネジア,100.0
+Dr. Stone,Dr.STONE,94.11764705882352
+Sailor Moon,美少女戦士セーラームーン,100.0
+YuYu Hakusho,幽☆遊☆白書,96.0
+Call of the Night,よふかしのうた,100.0
+Uzumaki,うずまき,100.0
+Fly Me to the Moon,トニカクカワイイ,100.0
+Billy Bat,BILLY BAT,100.0
+Blue Lock,ブルーロック,100.0
+Gantz,GANTZ,100.0
+InuYasha,犬夜叉,100.0
+Bleach,BLEACH,100.0
+Naruto,NARUTO,100.0
+Fairy Tail,FAIRY TAIL,100.0
+Soul Eater,ソウルイーター,100.0
+The Promised Neverland,約束のネバーランド,100.0
+Fire Force,炎炎ノ消防隊,100.0
+Blue Exorcist,青の祓魔師,100.0
+Devilman,デビルマン,100.0
+Great Teacher Onizuka,GTO,87.5
+Beelzebub,べるぜバブ,100.0
+Drifters,ドリフターズ,100.0
+Ajin: Demi-Human,亜人,93.75
+Prison School,監獄学園,100.0
+Highschool of the Dead,学園黙示録,84.44444444444444
+Kuroko's Basketball,黒子のバスケ,94.73684210526316
+Hellsing,ヘルシング,100.0
+Black Clover,ブラッククローバー,100.0
+My Hero Academia,僕のヒーローアカデミア,100.0
+The Seven Deadly Sins,七つの大罪,100.0
+Toriko,トリコ,100.0
+Gintama,銀魂,100.0
+Reborn!,家庭教師ヒットマンREBORN!,70.58823529411764
+Bungo Stray Dogs,文豪ストレイドッグス,100.0
+Deadman Wonderland,デッドマン・ワンダーランド,100.0
+Akame ga Kill!,アカメが斬る!,96.2962962962963
+Twin Star Exorcists,双星の陰陽師,100.0
+Noragami: Stray God,ノラガミ,94.73684210526316
+Pandora Hearts,PandoraHearts,100.0
+07-Ghost,07-GHOST,87.5
+Vampire Knight,ヴァンパイア騎士,100.0
+Fruits Basket,フルーツバスケット,100.0
+"Say ""I Love You.""",好きっていいなよ。,96.55172413793103
+Kimi ni Todoke: From Me to You,君に届け,96.66666666666667
+Special A,S・A(スペシャル・エー),75.0
+Toradora!,とらドラ!,94.11764705882352
+Itazura na Kiss,イタズラなKiss,100.0
+Skip Beat!,スキップ・ビート!,94.73684210526316
+Neighborhood Story,ご近所物語,100.0
+Mars,MARS,100.0
+High School Debut,高校デビュー,100.0
+Strobe Edge,ストロボ・エッジ,100.0
+Angel Beats!: Heaven's Door,Angel Beats! -Heaven's Door-,90.56603773584906
+Steins;Gate,STEINS;GATE,0

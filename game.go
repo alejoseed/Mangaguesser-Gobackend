@@ -25,6 +25,11 @@ func populateMangas() map[string]string {
 	return mangaNames
 }
 
+func findMangas_sqlite() (gin.H, error) {
+
+	return nil, errors.New("no mangaid matched")
+}
+
 func findMangas() (gin.H, error) {
 	const maxRetries = 5
 
