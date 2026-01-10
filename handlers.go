@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-contrib/sessions"
@@ -95,7 +96,11 @@ func get_image(c *gin.Context) {
 	userId := v.(string)
 	gameState := GameStates[userId]
 
-	db, err := sql.Open("sqlite3", "./manga_images.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./manga_images.db" // fallback to default
+	}
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,

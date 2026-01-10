@@ -4,13 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func populate_mangas() (map[string]string, error) {
-	db, err := sql.Open("sqlite3", "./manga_images.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./manga_images.db"
+	}
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -44,7 +49,11 @@ func populate_mangas() (map[string]string, error) {
 }
 
 func get_random_image_url(mangaId string) (string, error) {
-	db, err := sql.Open("sqlite3", "./manga_images.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./manga_images.db" // fallback to default
+	}
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open database: %w", err)
 	}

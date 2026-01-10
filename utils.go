@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -115,7 +116,11 @@ func hitImageUrl(imageUrl string) ([]byte, error) {
 
 func checkForVolumes(MangaId string) bool {
 	// Create database connection
-	db, err := sql.Open("sqlite3", "./manga_images.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./manga_images.db" // fallback to default
+	}
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": MangaId,

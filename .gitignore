@@ -1,7 +1,48 @@
+# Environment files
 .env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+manga_images.db
+
+# Executables
 *.exe
+*.out
+*.app
+
+# Browser/OS files
 uBlock0.chromium
 .DS_Store
-*.json
+Thumbs.db
+
+# Images and media
 *.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
 /scripts/mangas/
+
+# JSON files (be more specific - don't ignore all JSON)
+# Keep only specific JSON files you want to ignore
+# *.json  # Commented out - this was too broad
+
+# Go specific
+vendor/
+*.sum
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
