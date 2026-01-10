@@ -1,16 +1,13 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/google/uuid"
-	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -115,24 +112,16 @@ func hitImageUrl(imageUrl string) ([]byte, error) {
 }
 
 func checkForVolumes(MangaId string) bool {
-	// Create database connection
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "./manga_images.db" // fallback to default
-	}
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
+	if DB == nil {
 		log.WithFields(log.Fields{
 			"mangaId": MangaId,
-			"error":   err,
-		}).Error("Failed to open database checkForVolumes")
+		}).Error("Database not initialized in checkForVolumes")
 		return false
 	}
-	defer db.Close()
 
 	// Check if this manga has any images in our local database
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM images WHERE manga_id = ?", MangaId).Scan(&count)
+	err := DB.QueryRow("SELECT COUNT(*) FROM images WHERE manga_id = ?", MangaId).Scan(&count)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": MangaId,

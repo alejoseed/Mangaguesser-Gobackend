@@ -1,12 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-contrib/sessions"
@@ -96,22 +94,14 @@ func get_image(c *gin.Context) {
 	userId := v.(string)
 	gameState := GameStates[userId]
 
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "./manga_images.db" // fallback to default
-	}
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Error("Failed to open database in get_image")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open database"})
+	if DB == nil {
+		log.Error("Database not initialized")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not initialized"})
 		return
 	}
-	defer db.Close()
 
 	var mangaName string
-	err = db.QueryRow("select name from mangas where id = ?", gameState.MangaId).Scan(&mangaName)
+	err := DB.QueryRow("select name from mangas where id = ?", gameState.MangaId).Scan(&mangaName)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": gameState.MangaId,
@@ -122,7 +112,7 @@ func get_image(c *gin.Context) {
 	}
 
 	// Get all images for this manga
-	rows, err := db.Query("select image_name from images where manga_id = ?", gameState.MangaId)
+	rows, err := DB.Query("select image_name from images where manga_id = ?", gameState.MangaId)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": gameState.MangaId,

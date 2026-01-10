@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -8,11 +10,13 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
 
 var GameStates = map[string]GameState{}
+var DB *sql.DB
 
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
@@ -20,11 +24,38 @@ func init() {
 	log.SetLevel(log.InfoLevel)
 }
 
+func initDB() error {
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./manga_images.db" // fallback to default
+	}
+
+	var err error
+	DB, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Test the connection
+	err = DB.Ping()
+	if err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
 	err := godotenv.Load()
 
 	if err != nil {
 		log.Fatal("There was an error loading the .env file", err)
+	}
+
+	// Initialize database
+	err = initDB()
+	if err != nil {
+		log.Fatal("Failed to initialize database", err)
 	}
 
 	sessionSecret := os.Getenv("SESSION_SECRET")
