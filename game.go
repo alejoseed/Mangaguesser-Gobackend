@@ -1,65 +1,117 @@
 package main
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
 	"math/rand"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-// This function is in charge of creating an array of strings that contain
-// a manga each one,
-func populateMangas() map[string]string {
-	var mangaNames = map[string]string{}
+func populate_mangas() (map[string]string, error) {
+	db, err := sql.Open("sqlite3", "./manga_images.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
 
-	for i := 0; i < 4; i++ {
-		var random int = rand.Intn(len(MangaIds))
-		mangaNames[MangaIds[random].MangaName] = MangaIds[random].MangaId
+	var mangaNames = map[string]string{}
+	usedNames := make(map[string]bool)
+
+	for range 4 {
+		manga, err := get_random_manga(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get random manga: %w", err)
+		}
+
+		for usedNames[manga.Name] {
+			manga, err = get_random_manga(db)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get random manga (retry): %w", err)
+			}
+		}
+
+		usedNames[manga.Name] = true
+		mangaNames[manga.Name] = fmt.Sprintf("%d", manga.ID)
 	}
 
 	for i, data := range mangaNames {
 		fmt.Println(i, ":", data)
 	}
 
-	return mangaNames
+	return mangaNames, nil
 }
 
-func findMangas_sqlite() (gin.H, error) {
+func get_random_image_url(mangaId string) (string, error) {
+	db, err := sql.Open("sqlite3", "./manga_images.db")
+	if err != nil {
+		return "", fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
 
-	return nil, errors.New("no mangaid matched")
-}
+	var mangaName string
+	err = db.QueryRow("select name from mangas where id = ?", mangaId).Scan(&mangaName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get manga name: %w", err)
+	}
 
-func findMangas() (gin.H, error) {
-	const maxRetries = 5
+	rows, err := db.Query("select image_name from images WHERE manga_id = ?", mangaId)
+	if err != nil {
+		return "", fmt.Errorf("failed to query images: %w", err)
+	}
+	defer rows.Close()
 
-	for attempts := 0; attempts < maxRetries; attempts++ {
-		// Key is the name of the manga, value is the ID.
-		mangas := populateMangas()
-
-		var mangaNames = []string{}
-
-		for key := range mangas {
-			mangaNames = append(mangaNames, key)
-		}
-
-		// Random number index that is going to be the manga image that we will display
-		var correctNum int = rand.Intn(4)
-
-		mangaId := mangas[mangaNames[correctNum]]
-		fmt.Print(mangaId)
-		if !(checkForVolumes(mangaId)) {
+	var imageNames []string
+	for rows.Next() {
+		var imageName string
+		if err := rows.Scan(&imageName); err != nil {
 			continue
 		}
-
-		response := gin.H{
-			"mangas":               mangaNames,
-			"CurrentStoredMangaId": mangaId,
-			"index":                correctNum,
-		}
-
-		attempts = maxRetries
-		return response, nil
+		imageNames = append(imageNames, imageName)
 	}
-	return nil, errors.New("no mangaid matched")
+
+	if len(imageNames) == 0 {
+		return "", fmt.Errorf("no images found for manga")
+	}
+
+	randomImageName := imageNames[rand.Intn(len(imageNames))]
+
+	return fmt.Sprintf("https://node1.alejoseed.com/mangas/%s/%s", mangaName, randomImageName), nil
+}
+
+func find_mangas() (gin.H, error) {
+	mangas, err := populate_mangas()
+	if err != nil {
+		return nil, fmt.Errorf("failed to populate mangas: %w", err)
+	}
+
+	var mangaNames = []string{}
+
+	for key := range mangas {
+		mangaNames = append(mangaNames, key)
+	}
+
+	var correctNum int = rand.Intn(4)
+
+	mangaId := mangas[mangaNames[correctNum]]
+	fmt.Print(mangaId)
+
+	imageUrl, err := get_random_image_url(mangaId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get random image URL: %w", err)
+	}
+
+	response := gin.H{
+		"mangas":               mangaNames,
+		"CurrentStoredMangaId": mangaId,
+		"index":                correctNum,
+		"imageUrl":             imageUrl,
+	}
+
+	return response, nil
+}
+
+func find_image(mangaId string) (string, error) {
+	return get_random_image_url(mangaId)
 }

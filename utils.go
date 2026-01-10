@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -112,50 +114,27 @@ func hitImageUrl(imageUrl string) ([]byte, error) {
 }
 
 func checkForVolumes(MangaId string) bool {
-	requestUrl := "https://api.mangadex.org/manga/" + MangaId + "/aggregate"
-
-	resp, err := http.Get(requestUrl)
-
+	// Create database connection
+	db, err := sql.Open("sqlite3", "./manga_images.db")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": MangaId,
-			"url":     requestUrl,
 			"error":   err,
-		}).Error("Failed to fetch manga volumes checkForVolumes")
+		}).Error("Failed to open database checkForVolumes")
 		return false
 	}
-	defer resp.Body.Close()
+	defer db.Close()
 
-	// Check the status code if request didn't fail
-	if resp.StatusCode != http.StatusOK {
-		log.WithFields(log.Fields{
-			"mangaId": MangaId,
-			"url":     requestUrl,
-			"status":  resp.StatusCode,
-		}).Error("Unexpected status code from server checkForVolumes")
-		return false
-	}
-
-	body, err := io.ReadAll(resp.Body)
+	// Check if this manga has any images in our local database
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM images WHERE manga_id = ?", MangaId).Scan(&count)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": MangaId,
-			"url":     requestUrl,
 			"error":   err,
-		}).Error("Error reading response body checkForVolumes")
+		}).Error("Failed to query images checkForVolumes")
 		return false
 	}
 
-	var aggregate AggregateResponse
-	err = json.Unmarshal(body, &aggregate)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"url": requestUrl,
-			"err": err,
-		}).Error("Failed to unmarshal aggregate response checkForVolumes")
-		return false
-	}
-
-	return len(aggregate.Volumes) > 0
+	return count > 0
 }

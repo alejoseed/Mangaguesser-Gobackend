@@ -1,50 +1,46 @@
 package main
 
 import (
-	"encoding/csv"
-	"os"
-
-	log "github.com/sirupsen/logrus"
+	"database/sql"
+	"fmt"
+	"math/rand"
 )
 
-/*
-The function is obvious. It gets the data from the CSV
-and fills it into an array of manga that will be properly
-formatted based on the field.. It returns void because
-the manga has to be global since it will be accessed
-via an endpoint
-*/
-func fillMangas(data [][]string) {
-	for i, line := range data {
-		if i > 0 {
-			var rec manga
-			for j, field := range line {
-				switch j {
-				case 0:
-					rec.MangaName = field
-				case 1:
-					rec.MangaId = field
-				default:
-					rec.ContentType = field
-				}
-			}
-			MangaIds = append(MangaIds, rec)
-		}
-	}
-}
-
-func loadMangaCSV(path string) {
-	file, err := os.Open(path)
+func get_random_manga(db *sql.DB) (struct {
+	ID   int
+	Name string
+}, error) {
+	var count int
+	err := db.QueryRow("select count(*) from mangas").Scan(&count)
 	if err != nil {
-		log.Fatal("Error opening mangaIDs.csv", err)
+		return struct {
+			ID   int
+			Name string
+		}{}, fmt.Errorf("failed to count manga: %w", err)
 	}
-	defer file.Close()
 
-	csvReader := csv.NewReader(file)
-	csvReader.FieldsPerRecord = -1
-	data, err := csvReader.ReadAll()
-	if err != nil {
-		log.Fatal("Error parsing CSV", err)
+	if count == 0 {
+		return struct {
+			ID   int
+			Name string
+		}{}, fmt.Errorf("no manga found in database")
 	}
-	fillMangas(data)
+
+	offset := rand.Intn(count)
+
+	var manga struct {
+		ID   int
+		Name string
+	}
+
+	query := "select id, name from mangas limit 1 offset ?"
+	err = db.QueryRow(query, offset).Scan(&manga.ID, &manga.Name)
+	if err != nil {
+		return struct {
+			ID   int
+			Name string
+		}{}, fmt.Errorf("failed to fetch random manga: %w", err)
+	}
+
+	return manga, nil
 }

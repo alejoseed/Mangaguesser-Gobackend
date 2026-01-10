@@ -12,33 +12,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var MangaIds = []manga{}
 var GameStates = map[string]GameState{}
 
 func init() {
-	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
-
-	// Output to stdout instead of the default stderr
-	// Can be any io.Writer, see below for File example
 	log.SetOutput(os.Stdout)
-
-	// Will log anything that is info or above (warn, error, fatal, panic).
-	// Default.
 	log.SetLevel(log.InfoLevel)
-
 }
 
 func main() {
-	// load .env file
 	err := godotenv.Load()
 
 	if err != nil {
 		log.Fatal("There was an error loading the .env file", err)
 	}
-
-	// Reading the file. It should be in the root
-	loadMangaCSV("mangaIDs.csv")
 
 	sessionSecret := os.Getenv("SESSION_SECRET")
 
@@ -53,6 +40,7 @@ func main() {
 			log.Printf("%d | %s | %s | %s", status, c.Request.Method, c.Request.URL.Path, c.ClientIP())
 		}
 	})
+
 	// Session middleware
 	store := cookie.NewStore([]byte(sessionSecret))
 	store.Options(sessions.Options{
@@ -71,9 +59,9 @@ func main() {
 	router.Use(sessions.Sessions("mysession", store))
 
 	// Routes
-	router.GET("/random_manga", randomManga)
-	router.GET("/answer", checkAnswer)
-	router.GET("/image", getImage)
+	router.GET("/random_manga", random_manga)
+	router.GET("/answer", check_answer)
+	router.GET("/image", get_image)
 
 	router.GET("/debug-session", func(c *gin.Context) {
 		session := sessions.Default(c)
