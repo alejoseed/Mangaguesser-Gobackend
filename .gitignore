@@ -9,7 +9,13 @@
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 manga_images.db
+
+# Data files
+*.parquet
+scripts/results.parquet
 
 # Executables
 *.exe
@@ -31,7 +37,7 @@ Thumbs.db
 
 # JSON files (be more specific - don't ignore all JSON)
 # Keep only specific JSON files you want to ignore
-# *.json  # Commented out - this was too broad
+*.json  # Re-enabled since you want to ignore JSON files
 
 # Go specific
 vendor/
@@ -46,3 +52,5 @@ vendor/
 # Logs
 *.log
 logs/
+
+.csv
