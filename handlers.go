@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -101,12 +100,13 @@ func random_manga(c *gin.Context) {
 
 	delete(mangas, "index")
 
-	token, err := GenerateJWT(userId)
-	if err == nil {
-		SetJWTCookie(c, token)
+	response := gin.H{"data": mangas}
+
+	if token, err := GenerateJWT(userId); err == nil {
+		response["token"] = token
 	}
 
-	c.JSON(http.StatusOK, mangas)
+	c.JSON(http.StatusOK, response)
 }
 
 func check_answer(c *gin.Context) {
@@ -142,7 +142,7 @@ func check_answer(c *gin.Context) {
 	response := gin.H{"correct": correct}
 
 	if token, err := GenerateJWT(userId); err == nil {
-		SetJWTCookie(c, token)
+		response["token"] = token
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -162,13 +162,16 @@ func get_image(c *gin.Context) {
 		return
 	}
 
+	response := gin.H{}
+
 	if token, err := GenerateJWT(userId); err == nil {
-		SetJWTCookie(c, token)
+		response["token"] = token
 	}
 
 	if DB == nil {
 		log.Error("Database not initialized")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database not initialized"})
+		response["error"] = "Database not initialized"
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
@@ -179,7 +182,8 @@ func get_image(c *gin.Context) {
 			"mangaId": gameState.MangaId,
 			"error":   err,
 		}).Error("Failed to get manga name")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get manga name"})
+		response["error"] = "Failed to get manga name"
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
@@ -189,7 +193,8 @@ func get_image(c *gin.Context) {
 			"mangaId": gameState.MangaId,
 			"error":   err,
 		}).Error("Failed to query images")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query images"})
+		response["error"] = "Failed to query images"
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 	defer rows.Close()
@@ -210,46 +215,17 @@ func get_image(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"mangaId": gameState.MangaId,
 		}).Error("No images found for manga")
-		c.JSON(http.StatusNotFound, gin.H{"error": "No images found for manga"})
+		response["error"] = "No images found for manga"
+		c.JSON(http.StatusNotFound, response)
 		return
 	}
 
 	randomImageName := imageNames[rand.Intn(len(imageNames))]
 
 	imageUrl := fmt.Sprintf("https://node1.alejoseed.com/mangas/%s/%s", mangaName, randomImageName)
+	response["imageUrl"] = imageUrl
 
-	resp, err := http.Get(imageUrl)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"imageUrl": imageUrl,
-			"error":    err,
-		}).Error("Failed to fetch image from server")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch image"})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.WithFields(log.Fields{
-			"imageUrl": imageUrl,
-			"status":   resp.StatusCode,
-		}).Error("Unexpected status code from image server")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch image"})
-		return
-	}
-
-	imageData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"imageUrl": imageUrl,
-			"error":    err,
-		}).Error("Failed to read image data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read image"})
-		return
-	}
-
-	c.Header("Cache-Control", "max-age=0, no-cache, must-revalidate, proxy-revalidate")
-	c.Data(http.StatusOK, "image/png", imageData)
+	c.JSON(http.StatusOK, response)
 }
 
 func JWTAuthMiddleware() gin.HandlerFunc {
@@ -281,13 +257,29 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 }
 
 func getUserID(c *gin.Context) (string, error) {
-	if tokenString, err := c.Cookie("mangaguesser_token"); err == nil && tokenString != "" {
-		claims, err := ValidateJWT(tokenString)
-		if err == nil {
+	// Check Authorization header first (Bearer token)
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if claims, err := ValidateJWT(tokenString); err == nil {
 			return claims.UserID, nil
 		}
 	}
 
+	if tokenString := c.Query("token"); tokenString != "" {
+		if claims, err := ValidateJWT(tokenString); err == nil {
+			return claims.UserID, nil
+		}
+	}
+
+	// Check JWT cookie (Old method getting rid of it)
+	if tokenString, err := c.Cookie("mangaguesser_token"); err == nil && tokenString != "" {
+		if claims, err := ValidateJWT(tokenString); err == nil {
+			return claims.UserID, nil
+		}
+	}
+
+	// Check session cookie
 	session := sessions.Default(c)
 	if v := session.Get("userId"); v != nil {
 		return v.(string), nil
