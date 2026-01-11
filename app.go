@@ -85,11 +85,11 @@ func main() {
 	config := cors.DefaultConfig()
 	config.AllowCredentials = true
 	config.AllowOrigins = []string{"http://localhost:8080", "http://localhost:3000", "https://mangaguesser.alejoseed.com"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Cookie"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization"}
 	router.Use(cors.New(config))
 	router.Use(sessions.Sessions("mysession", store))
 
-	// Routes
+	// Game Routes (work with both HTTP-only session and client-side JWT cookie)
 	router.GET("/random_manga", random_manga)
 	router.GET("/answer", check_answer)
 	router.GET("/image", get_image)

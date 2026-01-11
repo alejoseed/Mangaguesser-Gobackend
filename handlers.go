@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -68,14 +69,14 @@ func cleanupExpiredSessions() {
 }
 
 func random_manga(c *gin.Context) {
-	session := sessions.Default(c)
-	v := session.Get("userId")
-	var userId string
-	if v == nil {
+	userId, err := getUserID(c)
+	if err != nil {
 		userId = generateUserId()
+		session := sessions.Default(c)
 		session.Set("userId", userId)
-	} else {
-		userId = v.(string)
+		if err := session.Save(); err != nil {
+			log.WithError(err).Error("Failed to save session")
+		}
 	}
 
 	fmt.Println(userId)
@@ -98,27 +99,24 @@ func random_manga(c *gin.Context) {
 		return
 	}
 
-	if err := session.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
-		return
-	}
-
 	delete(mangas, "index")
+
+	token, err := GenerateJWT(userId)
+	if err == nil {
+		SetJWTCookie(c, token)
+	}
 
 	c.JSON(http.StatusOK, mangas)
 }
 
 func check_answer(c *gin.Context) {
 	var userAnswerStr = c.Query("number")
-	session := sessions.Default(c)
-	var gameState GameState
-	v := session.Get("userId")
-	var userId string
-	if v == nil {
+
+	userId, err := getUserID(c)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
 		return
 	}
-	userId = v.(string)
 
 	gameState, err := loadGameState(userId)
 	if err != nil {
@@ -140,27 +138,32 @@ func check_answer(c *gin.Context) {
 
 	storedNumInterface := gameState.CorrectNum
 
-	if userAnswer == storedNumInterface {
-		c.JSON(http.StatusOK, gin.H{"correct": true})
-	} else {
-		log.Error("It got to this point so most likely there is a manga that it found?")
-		c.JSON(http.StatusOK, gin.H{"correct": false})
+	correct := userAnswer == storedNumInterface
+	response := gin.H{"correct": correct}
+
+	if token, err := GenerateJWT(userId); err == nil {
+		SetJWTCookie(c, token)
 	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func get_image(c *gin.Context) {
-	session := sessions.Default(c)
-	v := session.Get("userId")
-	if v == nil {
+	userId, err := getUserID(c)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
 		return
 	}
-	userId := v.(string)
 
-	gameState, loadErr := loadGameState(userId)
-	if loadErr != nil {
+	var gameState GameState
+	gameState, err = loadGameState(userId)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
 		return
+	}
+
+	if token, err := GenerateJWT(userId); err == nil {
+		SetJWTCookie(c, token)
 	}
 
 	if DB == nil {
@@ -170,7 +173,7 @@ func get_image(c *gin.Context) {
 	}
 
 	var mangaName string
-	err := DB.QueryRow("select name from mangas where id = ?", gameState.MangaId).Scan(&mangaName)
+	err = DB.QueryRow("select name from mangas where id = ?", gameState.MangaId).Scan(&mangaName)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"mangaId": gameState.MangaId,
@@ -247,4 +250,48 @@ func get_image(c *gin.Context) {
 
 	c.Header("Cache-Control", "max-age=0, no-cache, must-revalidate, proxy-revalidate")
 	c.Data(http.StatusOK, "image/png", imageData)
+}
+
+func JWTAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Bearer token required"})
+			c.Abort()
+			return
+		}
+
+		claims, err := ValidateJWT(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("userId", claims.UserID)
+		c.Next()
+	}
+}
+
+func getUserID(c *gin.Context) (string, error) {
+	if tokenString, err := c.Cookie("mangaguesser_token"); err == nil && tokenString != "" {
+		claims, err := ValidateJWT(tokenString)
+		if err == nil {
+			return claims.UserID, nil
+		}
+	}
+
+	session := sessions.Default(c)
+	if v := session.Get("userId"); v != nil {
+		return v.(string), nil
+	}
+
+	return "", fmt.Errorf("no user ID found")
 }
