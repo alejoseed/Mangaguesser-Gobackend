@@ -1,16 +1,71 @@
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
+
+func saveGameState(userId string, gameState GameState) error {
+	gameStateJSON, err := json.Marshal(gameState)
+	if err != nil {
+		return fmt.Errorf("failed to marshal game state: %w", err)
+	}
+
+	expiresAt := time.Now().Add(24 * time.Hour)
+	_, err = DB.Exec(`
+		insert or replace into sessions (user_id, game_state, expires_at) 
+		values (?, ?, ?)
+	`, userId, string(gameStateJSON), expiresAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to save game state: %w", err)
+	}
+
+	return nil
+}
+
+func loadGameState(userId string) (GameState, error) {
+	var gameStateJSON string
+	var expiresAt time.Time
+
+	err := DB.QueryRow(`
+		select game_state, expires_at 
+		from sessions 
+		where user_id = ? AND expires_at > ?
+	`, userId, time.Now()).Scan(&gameStateJSON, &expiresAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return GameState{}, fmt.Errorf("no active session found")
+		}
+		return GameState{}, fmt.Errorf("failed to load game state: %w", err)
+	}
+
+	var gameState GameState
+	err = json.Unmarshal([]byte(gameStateJSON), &gameState)
+	if err != nil {
+		return GameState{}, fmt.Errorf("failed to unmarshal game state: %w", err)
+	}
+
+	return gameState, nil
+}
+
+func cleanupExpiredSessions() {
+	_, err := DB.Exec("delete from sessions where expires_at <= ?", time.Now())
+	if err != nil {
+		log.WithError(err).Error("Failed to cleanup expired sessions")
+	}
+}
 
 func random_manga(c *gin.Context) {
 	session := sessions.Default(c)
@@ -30,20 +85,24 @@ func random_manga(c *gin.Context) {
 		return
 	}
 
-	// Store the game state
 	gameState := GameState{
 		MangaId:    mangas["CurrentStoredMangaId"].(string),
 		CorrectNum: mangas["index"].(int),
 		AtHome:     `https://api.mangadex.org/at-home/server/`,
 	}
 
-	GameStates[userId] = gameState
+	// Save to SQLite instead of memory map
+	if err := saveGameState(userId, gameState); err != nil {
+		log.WithError(err).Error("Failed to save game state")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save game state"})
+		return
+	}
 
 	if err := session.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
 		return
 	}
-	// Delete the obvious answer from the manga
+
 	delete(mangas, "index")
 
 	c.JSON(http.StatusOK, mangas)
@@ -60,7 +119,12 @@ func check_answer(c *gin.Context) {
 		return
 	}
 	userId = v.(string)
-	gameState = GameStates[userId]
+
+	gameState, err := loadGameState(userId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
+		return
+	}
 
 	userAnswer, err := strconv.Atoi(userAnswerStr)
 
@@ -92,7 +156,12 @@ func get_image(c *gin.Context) {
 		return
 	}
 	userId := v.(string)
-	gameState := GameStates[userId]
+
+	gameState, loadErr := loadGameState(userId)
+	if loadErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No active game found"})
+		return
+	}
 
 	if DB == nil {
 		log.Error("Database not initialized")
@@ -111,7 +180,6 @@ func get_image(c *gin.Context) {
 		return
 	}
 
-	// Get all images for this manga
 	rows, err := DB.Query("select image_name from images where manga_id = ?", gameState.MangaId)
 	if err != nil {
 		log.WithFields(log.Fields{

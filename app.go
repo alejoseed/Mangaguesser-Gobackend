@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -15,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var GameStates = map[string]GameState{}
 var DB *sql.DB
 
 func init() {
@@ -27,7 +27,7 @@ func init() {
 func initDB() error {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "./manga_images.db" // fallback to default
+		dbPath = "./manga_images.db"
 	}
 
 	var err error
@@ -101,6 +101,17 @@ func main() {
 			"gameState": session.Get("gameState"),
 		})
 	})
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				cleanupExpiredSessions()
+			}
+		}
+	}()
 
 	router.Run(":8080")
 }
