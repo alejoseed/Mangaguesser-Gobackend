@@ -105,11 +105,8 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				cleanupExpiredSessions()
-			}
+		for range ticker.C {
+			cleanupExpiredSessions()
 		}
 	}()
 

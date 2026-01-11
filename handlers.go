@@ -65,6 +65,21 @@ func cleanupExpiredSessions() {
 	if err != nil {
 		log.WithError(err).Error("Failed to cleanup expired sessions")
 	}
+
+	_, err = DB.Exec("delete from user_manga_history where shown_at < datetime('now', '-7 days')")
+	if err != nil {
+		log.WithError(err).Error("Failed to cleanup old image history")
+	}
+
+	_, err = DB.Exec(`
+		update user_manga_stats 
+		set times_shown = 0, last_shown = datetime('now', '-30 days')
+		where last_shown < datetime('now', '-30 days')
+	`)
+	if err != nil {
+		log.WithError(err).Error("Failed to reset old manga stats")
+	}
+
 }
 
 func random_manga(c *gin.Context) {
@@ -79,7 +94,7 @@ func random_manga(c *gin.Context) {
 	}
 
 	fmt.Println(userId)
-	mangas, err := find_mangas()
+	mangas, err := find_mangas_with_frequency(userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No MangaId for some reason?"})
 		return
@@ -91,11 +106,15 @@ func random_manga(c *gin.Context) {
 		AtHome:     `https://api.mangadex.org/at-home/server/`,
 	}
 
-	// Save to SQLite instead of memory map
 	if err := saveGameState(userId, gameState); err != nil {
 		log.WithError(err).Error("Failed to save game state")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save game state"})
 		return
+	}
+
+	// Track manga selection in stats
+	if err := updateMangaStats(userId, gameState.MangaId); err != nil {
+		log.WithError(err).Error("Failed to update manga stats")
 	}
 
 	delete(mangas, "index")
@@ -256,8 +275,51 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func updateMangaStats(userId string, mangaId string) error {
+	if DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	updateStatsQuery := `
+		insert into user_manga_stats (user_id, manga_id, last_shown, times_shown)
+		values (?, ?, datetime('now'), 1)
+		on conflict(user_id, manga_id) 
+		do update set 
+			last_shown = datetime('now'),
+			times_shown = times_shown + 1
+	`
+
+	_, err := DB.Exec(updateStatsQuery, userId, mangaId)
+	if err != nil {
+		return fmt.Errorf("failed to update manga stats: %w", err)
+	}
+
+	return nil
+}
+
+func trackImageViewed(userId string, mangaId string, imageName string) error {
+	if DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	updateHistoryQuery := `
+		insert into user_manga_history (user_id, manga_id, shown_at, image_name, view_count)
+		values (?, ?, datetime('now'), ?, 1)
+		on conflict(user_id, manga_id, image_name) 
+		do update set 
+			view_count = view_count + 1,
+			shown_at = datetime('now')
+	`
+
+	_, err := DB.Exec(updateHistoryQuery, userId, mangaId, imageName)
+	if err != nil {
+		return fmt.Errorf("failed to update image history: %w", err)
+	}
+
+	return nil
+}
+
 func getUserID(c *gin.Context) (string, error) {
-	// Check Authorization header first (Bearer token)
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -279,7 +341,6 @@ func getUserID(c *gin.Context) (string, error) {
 		}
 	}
 
-	// Check session cookie
 	session := sessions.Default(c)
 	if v := session.Get("userId"); v != nil {
 		return v.(string), nil
